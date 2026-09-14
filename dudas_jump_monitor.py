@@ -75,6 +75,7 @@ def format_message(board: dict[str, Any]) -> str:
     lines = [
         f"Dudas Jump leaderboard changed ({checked})",
         f"Board: {board.get('key', 'unknown')}",
+        f"Saved leaderboard players: {board.get('players', len(board['list']))}",
         f"Source: {ENDPOINT}",
         "",
     ]
