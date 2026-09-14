@@ -51,7 +51,7 @@ For reliable overnight monitoring, run it on a computer or server that stays onl
 5. The included `Procfile` and `railway.toml` already define the worker start command. If Railway asks for it manually, use:
 
    ```text
-   .venv/bin/python dudas_jump_monitor.py
+   python dudas_jump_monitor.py
    ```
 
 6. In Railway’s **Variables** section, add:
@@ -67,13 +67,13 @@ For reliable overnight monitoring, run it on a computer or server that stays onl
 
 Never upload `.env`, a bot token, a private key, or any other credential to GitHub. Put secrets only in Railway Variables.
 
-This is a Python worker, not an npm project. Do **not** run `npm build` and do not add a dummy `package.json`; that can cause Railway to detect the wrong build system. The verified build is an isolated `.venv` followed by `pip install -r requirements.txt`, and `nixpacks.toml` makes that choice explicit.
+This is a Python worker, not an npm project. Do **not** run `npm build` and do not add a dummy `package.json`; that can cause Railway to detect the wrong build system. Railway uses the native Nix `python311Packages.requests` dependency declared in `nixpacks.toml`, avoiding pip writes to the immutable system environment.
 
 ### If Railway still reports deployment failure
 
-Check the failed deployment log, not only the service log. The build should show Python being detected, `.venv` being created, and `requests` installing. The runtime start command should be exactly `.venv/bin/python dudas_jump_monitor.py`, from the repository root. Confirm the repository contains the `.py` file at its top level, not inside an extra nested folder. Confirm Railway Variables include both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. A missing Telegram variable does not normally prevent the initial baseline, but it will prevent notifications when a change occurs.
+Check the failed deployment log, not only the service log. The build should show Python and `python311Packages.requests` being installed. The runtime start command should be exactly `python dudas_jump_monitor.py`, from the repository root. Confirm the repository contains the `.py` file at its top level, not inside an extra nested folder. Confirm Railway Variables include both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. A missing Telegram variable does not normally prevent the initial baseline, but it will prevent notifications when a change occurs.
 
-If Railway cannot detect the project, redeploy after committing all five files. The project does not require Node.js, npm, a web server, a port, a database, Docker, or a health-check URL. Railway installs dependencies into `.venv` because Nix’s system Python is externally managed and cannot be modified directly.
+If Railway cannot detect the project, redeploy after committing all five files. The project does not require Node.js, npm, a web server, a port, a database, Docker, or a health-check URL.
 
 ## Railway, Vercel, and free hosting
 

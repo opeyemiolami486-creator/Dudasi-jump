@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.virtualenv"]
-
-[phases.install]
-cmds = ["python -m virtualenv .venv", ".venv/bin/pip install --no-cache-dir -r requirements.txt"]
+nixPkgs = ["python311", "python311Packages.requests"]
 
 [start]
-cmd = ".venv/bin/python dudas_jump_monitor.py"
+cmd = "python dudas_jump_monitor.py"
