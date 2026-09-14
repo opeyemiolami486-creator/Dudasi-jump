@@ -1,1 +1,1 @@
-worker: python dudas_jump_monitor.py
+worker: .venv/bin/python dudas_jump_monitor.py
