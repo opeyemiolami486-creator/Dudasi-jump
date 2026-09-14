@@ -1,0 +1,5 @@
+.env
+*.pyc
+__pycache__/
+dudas_jump_state.json
+.venv/
