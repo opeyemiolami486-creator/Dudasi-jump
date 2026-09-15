@@ -31,7 +31,7 @@ Run it:
 python3 /home/ubuntu/dudas_jump_monitor.py
 ```
 
-The script polls every 5 seconds by default, all day and every day. You can override this with `DUDAS_INTERVAL_SECONDS`; for example, `DUDAS_INTERVAL_SECONDS=60` is gentler on the public endpoint. It saves a local baseline in `dudas_jump_state.json`, then sends a Telegram message only after a later response changes in rank, player, score, height, toad count, or run duration. It intentionally does not send a message on the first baseline check.
+The script polls every 5 seconds by default, all day and every day. You can override this with `DUDAS_INTERVAL_SECONDS`; for example, `DUDAS_INTERVAL_SECONDS=60` is gentler on the public endpoint. It saves a local baseline in `dudas_jump_state.json`, then sends a Telegram message only after a later response changes in rank, player, score, height, toad count, or run duration. It also records the UTC time each score version is first observed and includes that time in the alert. It intentionally does not send a message on the first baseline check.
 
 ## Keeping it running
 
@@ -115,7 +115,7 @@ It returns completed/saved leaderboard runs. I did not find a public endpoint th
 
 ## Notification limitation
 
-The public endpoint exposes the current leaderboard, not a guaranteed event stream for every score submission. The monitor therefore alerts when the tracked top-10 response changes. A score may not trigger an alert if it does not enter or change the top 10, if the endpoint updates late, or if the request is rate-limited.
+The public endpoint exposes the current leaderboard, not a guaranteed event stream or server-side `submittedAt` timestamp for every score submission. The monitor therefore reports the first-observed UTC time, which is the closest submission-time estimate available from this public API. A score may not trigger an alert if it does not enter or change the top 10, if the endpoint updates late, or if the request is rate-limited.
 
 ## Important limitation
 

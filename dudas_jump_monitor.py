@@ -22,6 +22,12 @@ STATE_FILE = Path(os.getenv("DUDAS_STATE_FILE", "dudas_jump_state.json"))
 INTERVAL_SECONDS = int(os.getenv("DUDAS_INTERVAL_SECONDS", "5"))
 
 
+def row_key(row: dict[str, Any]) -> str:
+    """Identify a saved score version from the public leaderboard fields."""
+    values = [row.get(k) for k in ("name", "score", "height", "toads", "secs")]
+    return json.dumps(values, separators=(",", ":"), sort_keys=False)
+
+
 def fetch_board() -> dict[str, Any]:
     response = requests.get(ENDPOINT, timeout=20)
     response.raise_for_status()
@@ -47,22 +53,24 @@ def top10_signature(board: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def load_previous_signature() -> str | None:
+def load_state() -> dict[str, Any]:
     if not STATE_FILE.exists():
-        return None
+        return {}
     try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8")).get("signature")
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
     except (OSError, json.JSONDecodeError):
-        return None
+        return {}
 
 
-def save_signature(signature: str, board: dict[str, Any]) -> None:
+def save_state(signature: str, board: dict[str, Any], observed: dict[str, str]) -> None:
     STATE_FILE.write_text(
         json.dumps(
             {
                 "signature": signature,
                 "checked_at_utc": datetime.now(timezone.utc).isoformat(),
                 "board_key": board.get("key"),
+                "observed_scores": observed,
             },
             indent=2,
         ),
@@ -70,15 +78,24 @@ def save_signature(signature: str, board: dict[str, Any]) -> None:
     )
 
 
-def format_message(board: dict[str, Any]) -> str:
+def format_message(board: dict[str, Any], new_rows: list[dict[str, Any]], observed: dict[str, str]) -> str:
     checked = datetime.now(timezone.utc).isoformat(timespec="seconds")
     lines = [
         f"Dudas Jump leaderboard changed ({checked})",
         f"Board: {board.get('key', 'unknown')}",
         f"Saved leaderboard players: {board.get('players', len(board['list']))}",
         f"Source: {ENDPOINT}",
+        "Submission time is not exposed by the public API; times below are first-observed UTC times.",
         "",
     ]
+    if new_rows:
+        lines.append("Newly observed score(s):")
+        for row in new_rows:
+            lines.append(
+                f"  #{row.get('rank')} {row.get('name')} — score {row.get('score'):,}; "
+                f"first observed {observed[row_key(row)]}"
+            )
+        lines.append("")
     for row in board["list"][:10]:
         lines.append(
             f"#{row.get('rank')} {row.get('name')} — score {row.get('score'):,}; "
@@ -110,24 +127,35 @@ def send_telegram(body: str) -> None:
 def main() -> None:
     print(f"Monitoring {ENDPOINT}")
     print(f"Continuous read-only mode; polling every {INTERVAL_SECONDS} seconds")
-    previous = load_previous_signature()
+    state = load_state()
+    previous = state.get("signature")
+    observed = state.get("observed_scores") if isinstance(state.get("observed_scores"), dict) else {}
 
     while True:
         try:
             board = fetch_board()
             signature = top10_signature(board)
+            current_rows = board["list"][:10]
+            new_rows = []
+            checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            for row in current_rows:
+                key = row_key(row)
+                if key not in observed:
+                    observed[key] = checked_at
+                    new_rows.append(row)
             if previous is None:
                 # Establish a baseline without sending a noisy first message.
                 previous = signature
-                save_signature(signature, board)
+                save_state(signature, board, observed)
                 print("Baseline saved")
-            elif signature != previous:
-                body = format_message(board)
+            elif signature != previous or new_rows:
+                body = format_message(board, new_rows, observed)
                 send_telegram(body)
                 previous = signature
-                save_signature(signature, board)
+                save_state(signature, board, observed)
                 print("Leaderboard changed; Telegram message sent")
             else:
+                save_state(signature, board, observed)
                 print("No change")
         except Exception as exc:
             # Keep monitoring; transient network/Telegram failures should not stop it.
