@@ -31,7 +31,7 @@ Run it:
 python3 /home/ubuntu/dudas_jump_monitor.py
 ```
 
-The script polls every 5 seconds by default, all day and every day. You can override this with `DUDAS_INTERVAL_SECONDS`; for example, `DUDAS_INTERVAL_SECONDS=60` is gentler on the public endpoint. It saves a local baseline in `dudas_jump_state.json`, then sends a Telegram message only after a later response changes in rank, player, score, height, toad count, or run duration. It also records the UTC time each score version is first observed and includes that time in the alert. It intentionally does not send a message on the first baseline check.
+The script polls every 5 seconds by default, all day and every day. You can override this with `DUDAS_INTERVAL_SECONDS`, including decimal values such as `DUDAS_INTERVAL_SECONDS=0.1` for a 100-millisecond interval; the value must be greater than zero. For example, `DUDAS_INTERVAL_SECONDS=60` is gentler on the public endpoint. It saves a local baseline in `dudas_jump_state.json`, then sends a Telegram message only after a later response changes in rank, player, score, height, toad count, or run duration. It records each score version’s first-observed UTC time with millisecond precision and includes that timestamp in the alert. The public API does not expose a guaranteed server-side submission timestamp, so first-observed time is the monitor’s submission-time estimate. It intentionally does not send a message on the first baseline check.
 
 ## Keeping it running
 
@@ -88,7 +88,7 @@ If deploying to Railway, configure the service with:
 ```text
 Start command: python dudas_jump_monitor.py
 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID: Railway Variables
-DUDAS_INTERVAL_SECONDS: 5
+DUDAS_INTERVAL_SECONDS: 5 (supports decimal values such as 0.1)
 ```
 
 Do not commit `.env`, a bot token, a private key, or any other credential to a repository. Set secrets through the platform’s encrypted variable store.

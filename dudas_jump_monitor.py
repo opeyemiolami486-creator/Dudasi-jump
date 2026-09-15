@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -19,7 +20,26 @@ import requests
 
 ENDPOINT = "https://webcade.fun/api/dudas/board?limit=10&window=today"
 STATE_FILE = Path(os.getenv("DUDAS_STATE_FILE", "dudas_jump_state.json"))
-INTERVAL_SECONDS = int(os.getenv("DUDAS_INTERVAL_SECONDS", "5"))
+
+
+def configured_interval_seconds() -> float:
+    """Read a positive polling interval, including sub-second values."""
+    raw = os.getenv("DUDAS_INTERVAL_SECONDS", "5")
+    try:
+        interval = float(raw)
+    except ValueError as exc:
+        raise ValueError("DUDAS_INTERVAL_SECONDS must be a positive number of seconds") from exc
+    if not math.isfinite(interval) or interval <= 0:
+        raise ValueError("DUDAS_INTERVAL_SECONDS must be greater than 0")
+    return interval
+
+
+INTERVAL_SECONDS = configured_interval_seconds()
+
+
+def utc_timestamp_ms() -> str:
+    """Return an ISO 8601 UTC timestamp with millisecond precision."""
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 def row_key(row: dict[str, Any]) -> str:
@@ -68,7 +88,7 @@ def save_state(signature: str, board: dict[str, Any], observed: dict[str, str]) 
         json.dumps(
             {
                 "signature": signature,
-                "checked_at_utc": datetime.now(timezone.utc).isoformat(),
+                "checked_at_utc": utc_timestamp_ms(),
                 "board_key": board.get("key"),
                 "observed_scores": observed,
             },
@@ -79,7 +99,7 @@ def save_state(signature: str, board: dict[str, Any], observed: dict[str, str]) 
 
 
 def format_message(board: dict[str, Any], new_rows: list[dict[str, Any]], observed: dict[str, str]) -> str:
-    checked = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    checked = utc_timestamp_ms()
     lines = [
         f"Dudas Jump leaderboard changed ({checked})",
         f"Board: {board.get('key', 'unknown')}",
@@ -137,7 +157,7 @@ def main() -> None:
             signature = top10_signature(board)
             current_rows = board["list"][:10]
             new_rows = []
-            checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            checked_at = utc_timestamp_ms()
             for row in current_rows:
                 key = row_key(row)
                 if key not in observed:
